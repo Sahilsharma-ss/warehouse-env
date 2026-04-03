@@ -5,7 +5,7 @@ colorFrom: blue
 colorTo: green
 sdk: docker
 app_port: 7860
-short_description: OpenEnv warehouse order orchestration benchmark with easy, medium, and hard graded tasks.
+short_description: OpenEnv warehouse benchmark with graded planning tasks.
 tags:
   - openenv
   - reinforcement-learning
