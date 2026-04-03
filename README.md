@@ -104,9 +104,19 @@ The script uses the OpenAI client when these environment variables are set:
 
 - `API_BASE_URL`
 - `MODEL_NAME`
-- `OPENAI_API_KEY` or `HF_TOKEN`
+- `HF_TOKEN` (or `OPENAI_API_KEY`)
 
 If those are missing, it falls back to a deterministic heuristic policy so the repo still runs locally.
+
+### Submission environment variables
+
+For benchmark submission, define these variables in the runtime configuration:
+
+- `API_BASE_URL`
+- `MODEL_NAME`
+- `HF_TOKEN`
+
+The inference script remains `inference.py` at repository root and emits structured `[START]`, `[STEP]`, and `[END]` logs.
 
 ### Container build
 
@@ -122,6 +132,16 @@ This project is structured for Hugging Face Spaces as a containerized OpenEnv su
 1. Push the repo to Hugging Face.
 2. Use the provided `Dockerfile`.
 3. Verify the Space responds and the environment can be initialized from the `openenv.yaml` entrypoint.
+
+### Space runtime API
+
+The Docker Space exposes API-compatible endpoints for evaluator checks:
+
+- `GET /health` -> service liveness and task ids
+- `GET /reset` or `POST /reset` with optional `{ "task_id": "..." }`
+- `POST /step` with `{ "action": { ... } }`
+- `GET /state` or `POST /state`
+- `GET /run` to execute baseline evaluation from the UI
 
 ## Baseline Scores
 

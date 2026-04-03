@@ -3,11 +3,18 @@ from __future__ import annotations
 import html
 import json
 import os
+from pathlib import Path
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from inference import run_all_tasks
+from warehouse_env.environment import WarehouseEnv
+from warehouse_env.models import TaskConfig
+
+
+ROOT = Path(__file__).resolve().parent
+TASK_FILES = [ROOT / "tasks" / "easy.json", ROOT / "tasks" / "medium.json", ROOT / "tasks" / "hard.json"]
 
 
 def utc_now_iso() -> str:
@@ -127,6 +134,8 @@ def render_page(report: Dict[str, Any], generated_at: str, error: str = "") -> b
 
 class AppState:
     def __init__(self):
+        self.task_configs = self._load_task_configs()
+        self.env: Optional[WarehouseEnv] = None
         self.report: Dict[str, Any] = {
             "task_id": "all-tasks",
             "task_name": "Overall Baseline",
@@ -136,6 +145,56 @@ class AppState:
         }
         self.generated_at = utc_now_iso()
         self.last_error = ""
+        self.last_transition: Dict[str, Any] = {
+            "observation": {},
+            "reward": 0.0,
+            "done": False,
+            "info": {},
+        }
+
+    @staticmethod
+    def _load_task_configs() -> Dict[str, TaskConfig]:
+        configs: Dict[str, TaskConfig] = {}
+        for task_file in TASK_FILES:
+            with task_file.open("r", encoding="utf-8") as handle:
+                config = TaskConfig.model_validate(json.load(handle))
+            configs[config.task_id] = config
+        return configs
+
+    def reset_env(self, task_id: str | None = None) -> Dict[str, Any]:
+        selected_id = task_id
+        if selected_id is None:
+            selected_id = next(iter(self.task_configs))
+        if selected_id not in self.task_configs:
+            raise ValueError(f"Unknown task_id: {selected_id}")
+
+        self.env = WarehouseEnv(self.task_configs[selected_id])
+        observation = self.env.reset()
+        self.last_transition = {
+            "observation": observation,
+            "reward": 0.0,
+            "done": False,
+            "info": {"task_id": selected_id},
+        }
+        return observation
+
+    def step_env(self, action: Dict[str, Any]) -> Dict[str, Any]:
+        if self.env is None:
+            self.reset_env(None)
+
+        observation, reward, done, info = self.env.step(action)
+        self.last_transition = {
+            "observation": observation,
+            "reward": reward,
+            "done": done,
+            "info": info,
+        }
+        return self.last_transition
+
+    def state_env(self) -> Dict[str, Any]:
+        if self.env is None:
+            self.reset_env(None)
+        return self.env.state()
 
     def run(self):
         try:
@@ -166,9 +225,48 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _read_json_body(self) -> Dict[str, Any]:
+        length = int(self.headers.get("Content-Length", "0"))
+        if length <= 0:
+            return {}
+
+        raw = self.rfile.read(length)
+        try:
+            parsed = json.loads(raw.decode("utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Invalid JSON body: {exc}")
+
+        if not isinstance(parsed, dict):
+            raise ValueError("JSON body must be an object")
+        return parsed
+
+    def _send_error_json(self, error: str, status: int = 400):
+        self._send_json({"error": error}, status=status)
+
     def do_GET(self):
         if self.path == "/health":
-            self._send_json({"status": "ok", "generated_at": STATE.generated_at})
+            self._send_json(
+                {
+                    "status": "ok",
+                    "generated_at": STATE.generated_at,
+                    "tasks": list(STATE.task_configs.keys()),
+                }
+            )
+            return
+
+        if self.path == "/reset":
+            try:
+                observation = STATE.reset_env(None)
+                self._send_json({"observation": observation, "done": False})
+            except Exception as exc:
+                self._send_error_json(str(exc), status=500)
+            return
+
+        if self.path == "/state":
+            try:
+                self._send_json({"state": STATE.state_env()})
+            except Exception as exc:
+                self._send_error_json(str(exc), status=500)
             return
 
         if self.path == "/run":
@@ -180,6 +278,38 @@ class Handler(BaseHTTPRequestHandler):
 
         body = render_page(STATE.report, STATE.generated_at, STATE.last_error)
         self._send_html(body)
+
+    def do_POST(self):
+        if self.path == "/reset":
+            try:
+                payload = self._read_json_body()
+                task_id = payload.get("task_id")
+                observation = STATE.reset_env(task_id)
+                self._send_json({"observation": observation, "done": False})
+            except Exception as exc:
+                self._send_error_json(str(exc), status=400)
+            return
+
+        if self.path == "/step":
+            try:
+                payload = self._read_json_body()
+                action = payload.get("action")
+                if not isinstance(action, dict):
+                    self._send_error_json("Request must include object field 'action'", status=400)
+                    return
+                self._send_json(STATE.step_env(action))
+            except Exception as exc:
+                self._send_error_json(str(exc), status=400)
+            return
+
+        if self.path == "/state":
+            try:
+                self._send_json({"state": STATE.state_env()})
+            except Exception as exc:
+                self._send_error_json(str(exc), status=400)
+            return
+
+        self._send_error_json("Not found", status=404)
 
     def log_message(self, format: str, *args):
         return
