@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "warehouse-order-orchestrator"
+version = "0.1.0"
+description = "OpenEnv warehouse order orchestration benchmark"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Sahil Sharma" }
+]
+dependencies = [
+  "pydantic>=2.7,<3",
+  "openai>=1.40,<2",
+  "openenv-core>=0.1.0"
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["warehouse_env*"]
