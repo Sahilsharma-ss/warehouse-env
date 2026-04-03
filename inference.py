@@ -18,6 +18,13 @@ from warehouse_env.models import TaskConfig
 ROOT = Path(__file__).resolve().parent
 TASK_FILES = [ROOT / "tasks" / "easy.json", ROOT / "tasks" / "medium.json", ROOT / "tasks" / "hard.json"]
 
+# Submission checklist alignment:
+# - defaults only for API_BASE_URL and MODEL_NAME
+# - HF_TOKEN has no default
+API_BASE_URL = os.getenv("API_BASE_URL", "")
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1-mini")
+HF_TOKEN = os.getenv("HF_TOKEN")
+
 
 class HeuristicPolicy:
     def act(self, observation: Dict[str, Any]) -> Dict[str, Any]:
@@ -69,9 +76,9 @@ class HeuristicPolicy:
 
 class OpenAIPlanner:
     def __init__(self):
-        api_key = os.getenv("OPENAI_API_KEY") or os.getenv("HF_TOKEN")
-        base_url = os.getenv("API_BASE_URL")
-        self.model_name = os.getenv("MODEL_NAME", "gpt-4.1-mini")
+        api_key = HF_TOKEN
+        base_url = API_BASE_URL
+        self.model_name = MODEL_NAME
         self.client = None
         self.heuristic = HeuristicPolicy()
 
@@ -150,7 +157,7 @@ def run_task(task_path: Path, planner: OpenAIPlanner, grader: Grader) -> float:
             "difficulty": config.difficulty,
             "model": planner.model_name,
             "max_steps": config.max_steps,
-            "api_base_url": os.getenv("API_BASE_URL", ""),
+            "api_base_url": API_BASE_URL,
             "mode": "openai" if planner.client is not None else "heuristic",
         },
     )
