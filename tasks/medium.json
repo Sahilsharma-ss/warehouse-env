@@ -1,0 +1,69 @@
+{
+  "task_id": "crossdock-priority-routing",
+  "name": "Cross-Dock Priority Routing",
+  "difficulty": "medium",
+  "max_steps": 10,
+  "initial_inventory": {
+    "A": 4,
+    "B": 2,
+    "C": 0,
+    "D": 1
+  },
+  "restock_lead_time": 1,
+  "restock_cost": 0.05,
+  "expedite_cost": 0.1,
+  "wait_cost": 0.03,
+  "late_penalty": 0.1,
+  "invalid_action_penalty": 0.45,
+  "progress_reward": 0.07,
+  "completion_bonus": 1.1,
+  "on_time_bonus": 0.28,
+  "reward_floor": -5.0,
+  "reward_ceiling": 18.0,
+  "grader": {
+    "completion_weight": 0.4,
+    "on_time_weight": 0.3,
+    "priority_weight": 0.15,
+    "efficiency_weight": 0.1,
+    "reward_weight": 0.05
+  },
+  "orders": [
+    {
+      "id": 1,
+      "items": {
+        "A": 2
+      },
+      "deadline": 3,
+      "priority": 3,
+      "processing_time": 2
+    },
+    {
+      "id": 2,
+      "items": {
+        "A": 2
+      },
+      "deadline": 5,
+      "priority": 1,
+      "processing_time": 1
+    },
+    {
+      "id": 3,
+      "items": {
+        "B": 2
+      },
+      "deadline": 4,
+      "priority": 2,
+      "processing_time": 1
+    },
+    {
+      "id": 4,
+      "items": {
+        "C": 1,
+        "D": 1
+      },
+      "deadline": 6,
+      "priority": 2,
+      "processing_time": 2
+    }
+  ]
+}

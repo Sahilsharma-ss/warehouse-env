@@ -1,0 +1,59 @@
+{
+  "task_id": "morning-shift-triage",
+  "name": "Morning Shift Triage",
+  "difficulty": "easy",
+  "max_steps": 8,
+  "initial_inventory": {
+    "A": 10,
+    "B": 8,
+    "C": 4
+  },
+  "restock_lead_time": 1,
+  "restock_cost": 0.03,
+  "expedite_cost": 0.08,
+  "wait_cost": 0.02,
+  "late_penalty": 0.08,
+  "invalid_action_penalty": 0.4,
+  "progress_reward": 0.06,
+  "completion_bonus": 1.0,
+  "on_time_bonus": 0.25,
+  "reward_floor": -3.0,
+  "reward_ceiling": 14.0,
+  "grader": {
+    "completion_weight": 0.5,
+    "on_time_weight": 0.2,
+    "priority_weight": 0.1,
+    "efficiency_weight": 0.1,
+    "reward_weight": 0.1
+  },
+  "orders": [
+    {
+      "id": 1,
+      "items": {
+        "A": 2
+      },
+      "deadline": 4,
+      "priority": 1,
+      "processing_time": 1
+    },
+    {
+      "id": 2,
+      "items": {
+        "B": 3
+      },
+      "deadline": 5,
+      "priority": 2,
+      "processing_time": 1
+    },
+    {
+      "id": 3,
+      "items": {
+        "A": 1,
+        "C": 1
+      },
+      "deadline": 6,
+      "priority": 2,
+      "processing_time": 2
+    }
+  ]
+}

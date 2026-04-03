@@ -1,0 +1,18 @@
+name: warehouse-order-orchestrator
+version: 2.0.0
+description: A realistic warehouse order triage environment for planning, restocking, and priority execution.
+entrypoint: warehouse_env.environment:WarehouseEnv
+tags:
+  - openenv
+  - warehouse
+  - logistics
+  - scheduling
+  - operations
+observation_space:
+  type: dict
+action_space:
+  type: dict
+tasks:
+  - tasks/easy.json
+  - tasks/medium.json
+  - tasks/hard.json
