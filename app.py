@@ -21,9 +21,11 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 
-def render_page(report: Dict[str, Any], generated_at: str, error: str = "") -> bytes:
+def render_page(report: Dict[str, Any], generated_at: str, task_ids: list[str], error: str = "") -> bytes:
     safe_error = html.escape(error)
     safe_json = html.escape(json.dumps(report, indent=2, ensure_ascii=True))
+
+    tasks_joined = ", ".join(task_ids)
 
     body = f"""<!doctype html>
 <html lang=\"en\">
@@ -88,6 +90,16 @@ def render_page(report: Dict[str, Any], generated_at: str, error: str = "") -> b
       color: #ecfeff;
     }}
     .content {{ padding: 18px 24px 24px; }}
+        .api {{
+            margin: 0 0 14px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #a7f3d0;
+            background: #ecfdf5;
+            color: #065f46;
+            font-size: 0.92rem;
+            line-height: 1.4;
+        }}
     .error {{
       margin: 0 0 14px;
       padding: 10px 12px;
@@ -122,6 +134,10 @@ def render_page(report: Dict[str, Any], generated_at: str, error: str = "") -> b
       </nav>
     </section>
     <section class=\"content\">
+            <div class=\"api\">
+                OpenEnv API ready: GET /health, GET or POST /reset, POST /step, GET or POST /state.<br/>
+                Available tasks: {html.escape(tasks_joined)}
+            </div>
       <p class=\"error\">{safe_error}</p>
       <pre>{safe_json}</pre>
     </section>
@@ -276,7 +292,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return
 
-        body = render_page(STATE.report, STATE.generated_at, STATE.last_error)
+        body = render_page(STATE.report, STATE.generated_at, list(STATE.task_configs.keys()), STATE.last_error)
         self._send_html(body)
 
     def do_POST(self):
