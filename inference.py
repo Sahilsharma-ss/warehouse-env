@@ -196,6 +196,10 @@ def run_task(task_path: Path, planner: OpenAIPlanner, grader: Grader) -> float:
 
 
 def main():
+    run_all_tasks()
+
+
+def run_all_tasks() -> Dict[str, Any]:
     planner = OpenAIPlanner()
     grader = Grader()
 
@@ -214,6 +218,14 @@ def main():
             "task_scores": scores,
         },
     )
+
+    return {
+        "task_id": "all-tasks",
+        "task_name": "Overall Baseline",
+        "difficulty": "mixed",
+        "score": average_score,
+        "task_scores": scores,
+    }
 
 
 if __name__ == "__main__":
