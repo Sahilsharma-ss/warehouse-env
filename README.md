@@ -26,11 +26,11 @@ Warehouse Order Orchestrator is a real-world OpenEnv benchmark where an AI agent
 
 ```mermaid
 flowchart LR
-    A[reset] --> B[Observation: inventory, orders, shipments]
-    B --> C[Agent chooses action]
-    C --> D[step(action)]
-    D --> E[Reward + transition]
-    E --> F[Next observation or done]
+  A["reset()"] --> B["Observation: inventory, orders, shipments"]
+  B --> C["Agent chooses action"]
+  C --> D["step(action)"]
+  D --> E["Reward and transition"]
+  E --> F["Next observation or done"]
 ```
 
 ## Why This Environment
