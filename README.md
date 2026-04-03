@@ -16,26 +16,35 @@ pinned: false
 
 # Warehouse Order Orchestrator
 
-Warehouse Order Orchestrator is a real-world style OpenEnv environment where an agent plays the role of a warehouse operations coordinator. The job is to triage incoming customer orders, decide when to start processing, restock scarce items, and prioritize urgent work before deadlines are missed.
+Warehouse Order Orchestrator is a real-world OpenEnv benchmark where an AI agent acts as a warehouse operations coordinator. The agent must prioritize urgent orders, manage inventory constraints, decide when to restock, and complete work before deadlines.
+
+## Live Links
+
+- GitHub Repository: https://github.com/Sahilsharma-ss/warehouse-env
+- Hugging Face Space: https://huggingface.co/spaces/sharmasahil/warehouse-env
+- Runtime Endpoint (for API checks): https://sharmasahil-warehouse-env.hf.space
 
 ```mermaid
 flowchart LR
-	A[reset()] --> B[Observation: inventory, pending orders, shipments]
-	B --> C[Agent chooses action]
-	C --> D[step(action)]
-	D --> E[Reward shaping + deadline updates]
-	E --> F[Next observation or done]
+    A[reset] --> B[Observation: inventory, orders, shipments]
+    B --> C[Agent chooses action]
+    C --> D[step(action)]
+    D --> E[Reward + transition]
+    E --> F[Next observation or done]
 ```
 
-## Why this environment
+## Why This Environment
 
-This is designed to be useful for agent evaluation in a realistic operations setting. It captures the core planning loop humans use in warehouses: choose the next order, handle stock shortages, keep urgent work moving, and avoid wasting time on invalid actions.
+- Models a genuine logistics coordination workflow, not a toy domain.
+- Rewards partial progress across the full episode.
+- Includes deterministic graders with difficulty progression (easy -> medium -> hard).
+- Built for OpenEnv validation, reproducible inference runs, and HF Space deployment.
 
 ## OpenEnv Interface
 
 The environment implements the standard `reset()`, `step(action)`, and `state()` pattern through `warehouse_env.environment:WarehouseEnv`.
 
-### Observation space
+### Observation Space
 
 Each observation contains:
 
@@ -47,9 +56,9 @@ Each observation contains:
 | `active_order` | Current order in progress, if any |
 | `pending_orders` | Orders still awaiting fulfillment |
 | `incoming_shipments` | Restocks scheduled to arrive later in the episode |
-| `metrics` | Running progress ratios for agents and graders |
+| `metrics` | Running progress and score-oriented ratios |
 
-### Action space
+### Action Space
 
 The agent can choose one of four actions:
 
@@ -60,17 +69,23 @@ The agent can choose one of four actions:
 | `restock_item` | `item`, `quantity` | Schedule replenishment for a missing SKU |
 | `wait` | none | Advance time without new work |
 
-## Tasks
+## Tasks and Grading
 
-Three graded tasks are included, with increasing difficulty and tighter planning pressure.
+Three deterministic tasks are included with increasing planning pressure:
 
-| Task file | Difficulty | Focus |
-| --- | --- | --- |
-| `tasks/easy.json` | Easy | Straightforward triage with ample stock and forgiving deadlines |
-| `tasks/medium.json` | Medium | One restock decision plus tighter order timing |
-| `tasks/hard.json` | Hard | Scarce inventory, urgent orders, and competing deadline pressure |
+| Task | File | Difficulty | Core challenge |
+| --- | --- | --- | --- |
+| Morning Shift Triage | `tasks/easy.json` | Easy | Complete all orders with comfortable inventory and deadlines |
+| Cross-Dock Priority Routing | `tasks/medium.json` | Medium | Blend sequencing with one critical restock decision |
+| Same-Day Urgent Fulfillment | `tasks/hard.json` | Hard | Handle scarce stock, deadline pressure, and competing priorities |
 
-Each task also includes grader weights so the score is not just raw reward. The grader combines completion, timeliness, priority handling, action efficiency, and shaped reward into a normalized score in the range `0.0` to `1.0`.
+Grader output is normalized to the range `0.0` to `1.0` using weighted components:
+
+- Completion ratio
+- On-time ratio
+- Priority-weighted completion
+- Action efficiency (invalid action rate)
+- Reward normalization (`reward_floor` to `reward_ceiling`)
 
 ## Reward Design
 
@@ -86,90 +101,89 @@ Rewards are shaped across the full trajectory:
 | Invalid actions | Clear penalty |
 | Waiting | Small cost to discourage loops |
 
-## Setup
+## Quick Start
 
-### Local install
+### 1) Install
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Run the baseline
+### 2) Run Baseline
 
 ```bash
 python inference.py
 ```
 
-The script uses the OpenAI client when these environment variables are set:
+The baseline script (`inference.py`) emits strict structured logs:
 
-- `API_BASE_URL`
-- `MODEL_NAME`
-- `HF_TOKEN` (or `OPENAI_API_KEY`)
+- `[START]`
+- `[STEP]`
+- `[END]`
 
-If those are missing, it falls back to a deterministic heuristic policy so the repo still runs locally.
+### 3) Configure Environment Variables
 
-### Submission environment variables
-
-For benchmark submission, define these variables in the runtime configuration:
+For submission and hosted evaluation:
 
 - `API_BASE_URL`
 - `MODEL_NAME`
 - `HF_TOKEN`
 
-The inference script remains `inference.py` at repository root and emits structured `[START]`, `[STEP]`, and `[END]` logs.
+Defaults are set only for `API_BASE_URL` and `MODEL_NAME`; `HF_TOKEN` has no default.
 
-### Container build
+If credentials are missing, the script falls back to a deterministic heuristic policy so local execution remains reproducible.
+
+### 4) Container Run
 
 ```bash
 docker build -t openenv-warehouse .
-docker run --rm openenv-warehouse
+docker run --rm -p 7860:7860 openenv-warehouse
 ```
 
-## Deployment
+## Deployment and Runtime API
 
-This project is structured for Hugging Face Spaces as a containerized OpenEnv submission. The expected deployment path is:
+This repo is packaged for Hugging Face Docker Spaces.
 
-1. Push the repo to Hugging Face.
-2. Use the provided `Dockerfile`.
-3. Verify the Space responds and the environment can be initialized from the `openenv.yaml` entrypoint.
+Evaluator-friendly runtime endpoints:
 
-### Space runtime API
-
-The Docker Space exposes API-compatible endpoints for evaluator checks:
-
-- `GET /health` -> service liveness and task ids
+- `GET /health`
 - `GET /reset` or `POST /reset` with optional `{ "task_id": "..." }`
 - `POST /step` with `{ "action": { ... } }`
 - `GET /state` or `POST /state`
-- `GET /run` to execute baseline evaluation from the UI
+- `GET /run` to trigger baseline run from the UI
 
 ## Baseline Scores
 
-Run `python inference.py` to reproduce the baseline on all three tasks. The script prints per-task `[START]`, `[STEP]`, and `[END]` logs plus the final average score.
+Run `python inference.py` to reproduce baseline results:
 
-| Task | Baseline score |
+| Task | Score |
 | --- | --- |
 | Easy | 0.9576 |
 | Medium | 0.9081 |
 | Hard | 0.7730 |
 | Average | 0.8796 |
 
-## Repository Layout
+## Project Structure
 
 | Path | Purpose |
 | --- | --- |
-| `warehouse_env/environment.py` | Core OpenEnv environment |
 | `warehouse_env/models.py` | Typed Pydantic models |
-| `warehouse_env/grader.py` | Task-aware grader |
-| `tasks/` | Three graded task configs |
-| `inference.py` | Root baseline script |
-| `Dockerfile` | Container entrypoint for deployment |
+| `warehouse_env/environment.py` | Core OpenEnv environment (`reset/step/state`) |
+| `warehouse_env/grader.py` | Deterministic task grading to `0.0-1.0` |
+| `tasks/` | Easy, medium, hard task definitions |
+| `inference.py` | Baseline evaluation script with strict logs |
+| `app.py` | Space web app and API routing |
+| `server/app.py` | Multi-mode server script entrypoint |
+| `openenv.yaml` | OpenEnv metadata |
+| `pyproject.toml` + `uv.lock` | Packaging and lock metadata for validator checks |
 
-## Validation Checklist
+## Submission Checklist Alignment
 
-- `openenv.yaml` includes the environment metadata and task list.
-- The environment exposes `reset()`, `step()`, and `state()`.
-- Three deterministic task configs are included.
-- The baseline script is rooted at `inference.py`.
-- The Docker image starts from a clean container and launches the baseline script.
+- OpenEnv API behavior available in Space runtime (`reset/step/state`).
+- Dockerfile at repository root.
+- `inference.py` at repository root with structured logs.
+- Required env var pattern aligned (`API_BASE_URL`, `MODEL_NAME`, `HF_TOKEN`).
+- Multi-mode validator files included (`pyproject.toml`, `uv.lock`, `server/app.py`, script entrypoint).
+
+This project is ready for judge interaction through both repository checks and live Space runtime checks.
 
