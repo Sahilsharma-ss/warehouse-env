@@ -7,6 +7,8 @@ from warehouse_env.models import TaskConfig
 
 
 class TaskGrader:
+    _EPSILON = 1e-4
+
     def __init__(self, max_steps: int | None = None):
         self.max_steps = max_steps
 
@@ -52,9 +54,10 @@ class TaskGrader:
         )
 
         if total_weight <= 0:
-            return 0.0
+            return self._strict_unit_interval(0.0)
 
-        return round(max(0.0, min(1.0, weighted_sum / total_weight)), 4)
+        normalized_score = max(0.0, min(1.0, weighted_sum / total_weight))
+        return self._strict_unit_interval(normalized_score)
 
     def evaluate_all(self, env_class, agent, task_files: Sequence[str]):
         scores = []
@@ -67,7 +70,15 @@ class TaskGrader:
             score = self.evaluate(env, agent)
             scores.append(score)
 
-        return round(sum(scores) / max(1, len(scores)), 4)
+        if not scores:
+            return self._strict_unit_interval(0.0)
+
+        return self._strict_unit_interval(sum(scores) / len(scores))
+
+    @classmethod
+    def _strict_unit_interval(cls, value: float) -> float:
+        clamped = max(cls._EPSILON, min(1.0 - cls._EPSILON, value))
+        return round(clamped, 4)
 
     @staticmethod
     def _normalize_reward(reward: float, floor: float, ceiling: float) -> float:
