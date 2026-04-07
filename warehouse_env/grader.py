@@ -80,13 +80,14 @@ class TaskGrader:
         clamped = max(cls._EPSILON, min(1.0 - cls._EPSILON, value))
         return round(clamped, 4)
 
-    @staticmethod
-    def _normalize_reward(reward: float, floor: float, ceiling: float) -> float:
+    @classmethod
+    def _normalize_reward(cls, reward: float, floor: float, ceiling: float) -> float:
         if ceiling <= floor:
-            return 0.0
+            return cls._EPSILON
 
         normalized = (reward - floor) / (ceiling - floor)
-        return max(0.0, min(1.0, normalized))
+        clamped = max(0.0, min(1.0, normalized))
+        return cls._strict_unit_interval(clamped)
 
 
 class Grader(TaskGrader):

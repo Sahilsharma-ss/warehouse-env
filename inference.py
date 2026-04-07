@@ -214,7 +214,7 @@ def run_all_tasks() -> Dict[str, Any]:
     for task_path in TASK_FILES:
         scores.append(run_task(task_path, planner, grader))
 
-    average_score = round(sum(scores) / max(1, len(scores)), 4)
+    average_score = Grader._strict_unit_interval(sum(scores) / max(1, len(scores)))
     print_log(
         "[END]",
         {
