@@ -7,7 +7,7 @@ from warehouse_env.models import TaskConfig
 
 
 class TaskGrader:
-    _EPSILON = 1e-4
+    _EPSILON = 5e-5  # 0.00005: ensures round(..., 4) never produces 0.0 or 1.0
 
     def __init__(self, max_steps: int | None = None):
         self.max_steps = max_steps
@@ -77,8 +77,21 @@ class TaskGrader:
 
     @classmethod
     def _strict_unit_interval(cls, value: float) -> float:
+        """Clamp to strict (0, 1) with rounding-aware epsilon.
+        
+        With epsilon=5e-5 and rounding to 4 decimals:
+        - Values clamped to [5e-5, 1-5e-5]
+        - After rounding: guaranteed in [0.0001, 0.9999]
+        """
         clamped = max(cls._EPSILON, min(1.0 - cls._EPSILON, value))
-        return round(clamped, 4)
+        rounded = round(clamped, 4)
+        
+        # Final safety check: if rounding produced boundary, adjust
+        if rounded <= 0.0:
+            return 0.0001
+        if rounded >= 1.0:
+            return 0.9999
+        return rounded
 
     @classmethod
     def _normalize_reward(cls, reward: float, floor: float, ceiling: float) -> float:
