@@ -26,6 +26,11 @@ MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1-mini")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 
+def _safe_score(value: float) -> float:
+    """Final output safety-net: always emit task scores inside (0, 1)."""
+    return Grader._strict_unit_interval(float(value))
+
+
 class HeuristicPolicy:
     def act(self, observation: Dict[str, Any]) -> Dict[str, Any]:
         active_order = observation.get("active_order")
@@ -181,7 +186,7 @@ def run_task(task_path: Path, planner: OpenAIPlanner, grader: Grader) -> float:
             },
         )
 
-    score = grader.score(env, total_reward)
+    score = _safe_score(grader.score(env, total_reward))
     summary = env.summary()
 
     print_log(
@@ -212,9 +217,9 @@ def run_all_tasks() -> Dict[str, Any]:
 
     scores: List[float] = []
     for task_path in TASK_FILES:
-        scores.append(run_task(task_path, planner, grader))
+        scores.append(_safe_score(run_task(task_path, planner, grader)))
 
-    average_score = Grader._strict_unit_interval(sum(scores) / max(1, len(scores)))
+    average_score = _safe_score(sum(scores) / max(1, len(scores)))
     print_log(
         "[END]",
         {
