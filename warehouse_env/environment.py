@@ -14,6 +14,9 @@ from warehouse_env.models import (
 
 
 class WarehouseEnv:
+    _RATIO_MIN = 0.1
+    _RATIO_MAX = 0.99
+
     def __init__(self, config: Dict[str, Any] | TaskConfig):
         self.config = TaskConfig.model_validate(config)
         self._initial_state = WarehouseState(
@@ -46,6 +49,11 @@ class WarehouseEnv:
             + self._state.invalid_actions,
         )
 
+        completion_ratio = self._strict_ratio(self._state.completed_orders / total_orders)
+        on_time_ratio = self._strict_ratio(self._state.fulfilled_on_time / total_orders)
+        priority_completion_ratio = self._strict_ratio(self._state.completed_priority / total_priority)
+        invalid_action_rate = self._strict_ratio(self._state.invalid_actions / action_count)
+
         return {
             "task_id": self._state.config.task_id,
             "task_name": self._state.config.name,
@@ -55,10 +63,10 @@ class WarehouseEnv:
             "completed_orders": self._state.completed_orders,
             "fulfilled_on_time": self._state.fulfilled_on_time,
             "fulfilled_late": self._state.fulfilled_late,
-            "completion_ratio": self._state.completed_orders / total_orders,
-            "on_time_ratio": self._state.fulfilled_on_time / total_orders,
-            "priority_completion_ratio": self._state.completed_priority / total_priority,
-            "invalid_action_rate": self._state.invalid_actions / action_count,
+            "completion_ratio": completion_ratio,
+            "on_time_ratio": on_time_ratio,
+            "priority_completion_ratio": priority_completion_ratio,
+            "invalid_action_rate": invalid_action_rate,
             "wait_actions": self._state.wait_actions,
             "restock_actions": self._state.restock_actions,
             "expedite_actions": self._state.expedite_actions,
@@ -269,6 +277,12 @@ class WarehouseEnv:
             if order.status in {"pending", "late"}
         ]
 
+        completion_ratio = self._strict_ratio(self._state.completed_orders / max(1, len(self._state.orders)))
+        on_time_ratio = self._strict_ratio(self._state.fulfilled_on_time / max(1, len(self._state.orders)))
+        priority_completion_ratio = self._strict_ratio(
+            self._state.completed_priority / max(1.0, self._state.total_priority)
+        )
+
         return WarehouseObservation(
             task_id=self._state.config.task_id,
             task_name=self._state.config.name,
@@ -280,12 +294,17 @@ class WarehouseEnv:
             pending_orders=pending_orders,
             incoming_shipments=[shipment.model_copy(deep=True) for shipment in self._state.incoming_shipments],
             metrics={
-                "completion_ratio": self._state.completed_orders / max(1, len(self._state.orders)),
-                "on_time_ratio": self._state.fulfilled_on_time / max(1, len(self._state.orders)),
-                "priority_completion_ratio": self._state.completed_priority / max(1.0, self._state.total_priority),
+                "completion_ratio": completion_ratio,
+                "on_time_ratio": on_time_ratio,
+                "priority_completion_ratio": priority_completion_ratio,
                 "total_reward": self._state.total_reward,
             },
         )
+
+    @classmethod
+    def _strict_ratio(cls, value: float) -> float:
+        clamped = max(cls._RATIO_MIN, min(cls._RATIO_MAX, value))
+        return round(clamped, 4)
 
     def _find_order(self, order_id: int) -> Optional[Order]:
         return next((order for order in self._state.orders if order.id == order_id), None)
