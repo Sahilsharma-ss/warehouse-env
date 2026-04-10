@@ -16,7 +16,12 @@ from warehouse_env.models import TaskConfig
 
 
 ROOT = Path(__file__).resolve().parent
-TASK_FILES = [ROOT / "tasks" / "easy.json", ROOT / "tasks" / "medium.json", ROOT / "tasks" / "hard.json"]
+TASK_FILES = [
+    ROOT / "tasks" / "easy.json",
+    ROOT / "tasks" / "medium.json",
+    ROOT / "tasks" / "hard.json",
+    ROOT / "tasks" / "peak_season.json",
+]
 
 # Submission checklist alignment:
 # - defaults only for API_BASE_URL and MODEL_NAME

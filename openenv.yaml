@@ -17,3 +17,4 @@ tasks:
   - tasks/easy.json
   - tasks/medium.json
   - tasks/hard.json
+  - tasks/peak_season.json
