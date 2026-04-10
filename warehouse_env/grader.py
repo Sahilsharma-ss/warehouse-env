@@ -7,8 +7,9 @@ from warehouse_env.models import TaskConfig
 
 
 class TaskGrader:
-    _MIN_SCORE = 0.1
-    _MAX_SCORE = 0.99
+    # Small margins so scores are always strictly inside (0, 1)
+    _MIN_SCORE = 0.0001
+    _MAX_SCORE = 0.9999
 
     def __init__(self, max_steps: int | None = None):
         self.max_steps = max_steps
@@ -78,18 +79,19 @@ class TaskGrader:
 
     @classmethod
     def _strict_unit_interval(cls, value: float) -> float:
-        """Clamp all scores to [0.1, 0.99] so they are always inside (0, 1)."""
+        """Clamp scores strictly inside (0, 1) and round for stability."""
+
+        # Defensive handling for NaN / infinities
+        if not (value == value) or value in (float("inf"), float("-inf")):
+            value = 0.5
+
         clamped = max(cls._MIN_SCORE, min(cls._MAX_SCORE, value))
-        rounded = round(clamped, 4)
-        if rounded < cls._MIN_SCORE:
-            return cls._MIN_SCORE
-        if rounded > cls._MAX_SCORE:
-            return cls._MAX_SCORE
-        return rounded
+        return round(clamped, 4)
 
     @classmethod
     def _normalize_reward(cls, reward: float, floor: float, ceiling: float) -> float:
         if ceiling <= floor:
+            # Degenerate reward range: fall back to a safe interior score
             return cls._MIN_SCORE
 
         normalized = (reward - floor) / (ceiling - floor)
